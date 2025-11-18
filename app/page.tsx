@@ -30,7 +30,6 @@ export default function Home() {
   const [loadingTables, setLoadingTables] = useState(false);
   const [loadingColumns, setLoadingColumns] = useState(false);
   
-  // JOIN states
   const [joins, setJoins] = useState<JoinConfig[]>([]);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [newJoin, setNewJoin] = useState<JoinConfig>({
@@ -40,11 +39,7 @@ export default function Home() {
     targetColumn: ''
   });
   const [availableColumns, setAvailableColumns] = useState<{[key: string]: string[]}>({});
-
-  // Send to backend state
   const [sendingToBackend, setSendingToBackend] = useState(false);
-
-  // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
@@ -92,9 +87,7 @@ export default function Home() {
     
     try {
       const { data, error } = await supabase.rpc('get_tables_list');
-      
       if (error) throw error;
-      
       const tableNames = data?.map((t: any) => t.table_name || t) || [];
       setTables(tableNames);
       console.log('✅ Tables loaded:', tableNames);
@@ -112,7 +105,6 @@ export default function Home() {
     
     try {
       const { data, error } = await supabase.rpc('get_table_columns', { table_name: tableName });
-      
       if (error) throw error;
       
       const columnNames = data?.map((col: any) => col.column_name) || [];
@@ -155,7 +147,6 @@ export default function Home() {
 
   async function loadFieldsForTable(tableName: string): Promise<Field[]> {
     const { data, error } = await supabase.rpc('get_table_columns', { table_name: tableName });
-    
     if (error || !data) return [];
     
     const columnNames = data.map((col: any) => col.column_name);
@@ -240,46 +231,23 @@ export default function Home() {
             const value = rule.value;
             
             switch (rule.operator) {
-              case '=':
-                queryBuilder = queryBuilder.eq(field, value);
-                break;
-              case '!=':
-                queryBuilder = queryBuilder.neq(field, value);
-                break;
-              case '<':
-                queryBuilder = queryBuilder.lt(field, value);
-                break;
-              case '>':
-                queryBuilder = queryBuilder.gt(field, value);
-                break;
-              case '<=':
-                queryBuilder = queryBuilder.lte(field, value);
-                break;
-              case '>=':
-                queryBuilder = queryBuilder.gte(field, value);
-                break;
-              case 'contains':
-                queryBuilder = queryBuilder.ilike(field, `%${value}%`);
-                break;
-              case 'beginsWith':
-                queryBuilder = queryBuilder.ilike(field, `${value}%`);
-                break;
-              case 'endsWith':
-                queryBuilder = queryBuilder.ilike(field, `%${value}`);
-                break;
-              case 'null':
-                queryBuilder = queryBuilder.is(field, null);
-                break;
-              case 'notNull':
-                queryBuilder = queryBuilder.not(field, 'is', null);
-                break;
+              case '=': queryBuilder = queryBuilder.eq(field, value); break;
+              case '!=': queryBuilder = queryBuilder.neq(field, value); break;
+              case '<': queryBuilder = queryBuilder.lt(field, value); break;
+              case '>': queryBuilder = queryBuilder.gt(field, value); break;
+              case '<=': queryBuilder = queryBuilder.lte(field, value); break;
+              case '>=': queryBuilder = queryBuilder.gte(field, value); break;
+              case 'contains': queryBuilder = queryBuilder.ilike(field, `%${value}%`); break;
+              case 'beginsWith': queryBuilder = queryBuilder.ilike(field, `${value}%`); break;
+              case 'endsWith': queryBuilder = queryBuilder.ilike(field, `%${value}`); break;
+              case 'null': queryBuilder = queryBuilder.is(field, null); break;
+              case 'notNull': queryBuilder = queryBuilder.not(field, 'is', null); break;
             }
           }
         });
       }
 
       const { data: result, error: queryError } = await queryBuilder;
-
       if (queryError) throw queryError;
 
       setData(result || []);
@@ -305,10 +273,7 @@ export default function Home() {
     try {
       const conditions = query.rules
         .filter((rule: any) => 
-          rule.field && 
-          rule.operator && 
-          rule.value !== undefined && 
-          rule.value !== ''
+          rule.field && rule.operator && rule.value !== undefined && rule.value !== ''
         )
         .map((rule: any) => ({
           field: rule.field.includes('.') ? rule.field.split('.')[1] : rule.field,
@@ -326,9 +291,7 @@ export default function Home() {
 
       const response = await fetch('https://eumatrix.app.n8n.cloud/webhook/query', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
@@ -337,10 +300,8 @@ export default function Home() {
       }
 
       const result = await response.json();
-
       console.log('✅ Backend response:', result);
       
-      // Backend se data save karo
       if (Array.isArray(result)) {
         setData(result);
       } else if (result.data && Array.isArray(result.data)) {
@@ -353,7 +314,6 @@ export default function Home() {
       
       setCurrentPage(1);
       alert('✅ Data successfully received from backend!');
-
     } catch (err: any) {
       setError(`Backend error: ${err.message}`);
       console.error('❌ Backend error:', err);
@@ -363,43 +323,34 @@ export default function Home() {
     }
   }
 
-  // Get table columns from data
   const getTableColumns = () => {
     if (data.length === 0) return [];
     return Object.keys(data[0]);
   };
 
-  // Pagination logic
   const totalPages = Math.ceil(data.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const currentData = data.slice(startIndex, endIndex);
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
+  const handlePageChange = (page: number) => setCurrentPage(page);
   const handleItemsPerPageChange = (items: number) => {
     setItemsPerPage(items);
     setCurrentPage(1);
   };
 
   return (
-    <div style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto' }}>
-      <h1 style={{ marginBottom: '20px' }}>EU Matrix Data Engine</h1>
+    <div className="p-5 max-w-[1400px] mx-auto">
+      <h1 className="mb-5 text-2xl font-bold text-gray-800">EU Matrix Data Engine</h1>
       
       {/* Connection Status */}
-      <div style={{
-        padding: '15px',
-        marginBottom: '20px',
-        borderRadius: '8px',
-        backgroundColor: connectionStatus === 'connected' ? '#d4edda' : 
-                        connectionStatus === 'error' ? '#f8d7da' : '#fff3cd',
-        border: `1px solid ${connectionStatus === 'connected' ? '#c3e6cb' : 
-                             connectionStatus === 'error' ? '#f5c6cb' : '#ffeaa7'}`,
-        color: connectionStatus === 'connected' ? '#155724' : 
-               connectionStatus === 'error' ? '#721c24' : '#856404'
-      }}>
+      <div className={`p-4 mb-5 rounded-lg border ${
+        connectionStatus === 'connected' 
+          ? 'bg-green-50 border-green-200 text-green-800' 
+          : connectionStatus === 'error' 
+          ? 'bg-red-50 border-red-200 text-red-800' 
+          : 'bg-yellow-50 border-yellow-200 text-yellow-800'
+      }`}>
         <strong>Database Status: </strong>
         {connectionStatus === 'checking' && '🔄 Checking connection...'}
         {connectionStatus === 'connected' && '✅ Connected to Supabase'}
@@ -408,30 +359,14 @@ export default function Home() {
 
       {/* Table Selector */}
       {connectionStatus === 'connected' && (
-        <div style={{
-          border: '1px solid #ddd',
-          borderRadius: '8px',
-          padding: '20px',
-          marginBottom: '20px',
-          backgroundColor: '#fff'
-        }}>
-          <h2 style={{ marginBottom: '15px', color: '#333' }}>Select Table</h2>
-          <div style={{ display: 'flex', gap: '10px', width: '100%', flexWrap: 'wrap' }}>
+        <div className="border border-gray-300 rounded-lg p-5 mb-5 bg-white">
+          <h2 className="mb-4 text-xl font-semibold text-gray-800">Select Table</h2>
+          <div className="flex gap-2 flex-wrap">
             <select
               value={selectedTable}
               onChange={(e) => setSelectedTable(e.target.value)}
               disabled={loadingTables}
-              style={{
-                flex: 1,
-                minWidth: '200px',
-                padding: '10px',
-                fontSize: '16px',
-                borderRadius: '6px',
-                border: '1px solid #ccc',
-                backgroundColor: '#fff',
-                color: '#333',
-                cursor: 'pointer'
-              }}
+              className="flex-1 min-w-[200px] p-2.5 text-base rounded-md border border-gray-300 bg-white text-gray-800 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">-- Select a table --</option>
               {tables.map(table => (
@@ -441,21 +376,13 @@ export default function Home() {
             <button
               onClick={loadTables}
               disabled={loadingTables}
-              style={{
-                padding: '10px 20px',
-                backgroundColor: '#6c757d',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '14px'
-              }}
+              className="px-5 py-2.5 bg-gray-600 text-white border-none rounded-md cursor-pointer text-sm font-medium hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loadingTables ? '⏳' : '🔄'} Refresh
             </button>
           </div>
           {selectedTable && (
-            <p style={{ marginTop: '10px', color: '#666', fontSize: '14px' }}>
+            <p className="mt-2.5 text-gray-600 text-sm">
               📊 Selected: <strong>{selectedTable}</strong> {fields.length > 0 && `(${fields.length} columns)`}
             </p>
           )}
@@ -464,40 +391,18 @@ export default function Home() {
 
       {/* Query Builder */}
       {selectedTable && fields.length > 0 && (
-        <div style={{
-          border: '1px solid #ddd',
-          borderRadius: '8px',
-          padding: '20px',
-          marginBottom: '20px',
-          backgroundColor: '#fff'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', flexWrap: 'wrap', gap: '10px' }}>
-            <h2 style={{ margin: 0, color: '#333' }}>Query Builder</h2>
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+        <div className="border border-gray-300 rounded-lg p-5 mb-5 bg-white">
+          <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
+            <h2 className="m-0 text-xl font-semibold text-gray-800">Query Builder</h2>
+            <div className="flex gap-2 flex-wrap">
               {joins.length > 0 && (
-                <span style={{ 
-                  padding: '8px 12px', 
-                  backgroundColor: '#e7f3ff', 
-                  color: '#0056b3',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  fontWeight: 'bold'
-                }}>
+                <span className="px-3 py-2 bg-blue-50 text-blue-700 rounded-md text-sm font-bold">
                   {joins.length} JOIN{joins.length > 1 ? 'S' : ''}
                 </span>
               )}
               <button
                 onClick={openJoinModal}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#28a745',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: 'bold'
-                }}
+                className="px-4 py-2 bg-green-600 text-white border-none rounded-md cursor-pointer text-sm font-bold hover:bg-green-700"
               >
                 + JOIN
               </button>
@@ -505,35 +410,17 @@ export default function Home() {
           </div>
 
           {joins.length > 0 && (
-            <div style={{ marginBottom: '15px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div className="mb-4 flex flex-col gap-2">
               {joins.map((join, index) => (
-                <div key={index} style={{
-                  padding: '10px 12px',
-                  backgroundColor: '#f0f8ff',
-                  borderRadius: '6px',
-                  border: '1px solid #b3d9ff',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '8px'
-                }}>
-                  <span style={{ color: '#333', fontSize: '13px', fontFamily: 'monospace' }}>
-                    <strong style={{ color: '#0056b3' }}>{join.type}</strong> {join.targetTable} 
-                    <span style={{ color: '#666' }}> ON </span>
+                <div key={index} className="p-3 bg-blue-50 rounded-md border border-blue-200 flex justify-between items-center flex-wrap gap-2">
+                  <span className="text-gray-800 text-sm font-mono">
+                    <strong className="text-blue-700">{join.type}</strong> {join.targetTable} 
+                    <span className="text-gray-600"> ON </span>
                     {selectedTable}.{join.sourceColumn} = {join.targetTable}.{join.targetColumn}
                   </span>
                   <button
                     onClick={() => removeJoin(index)}
-                    style={{
-                      padding: '4px 10px',
-                      backgroundColor: '#dc3545',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontSize: '11px'
-                    }}
+                    className="px-2.5 py-1 bg-red-600 text-white border-none rounded cursor-pointer text-xs hover:bg-red-700"
                   >
                     ✕
                   </button>
@@ -543,33 +430,20 @@ export default function Home() {
           )}
 
           {loadingColumns ? (
-            <p style={{ color: '#666' }}>⏳ Loading columns...</p>
+            <p className="text-gray-600">⏳ Loading columns...</p>
           ) : (
-            <QueryBuilder
-              fields={fields}
-              query={query}
-              onQueryChange={setQuery}
-            />
+            <QueryBuilder fields={fields} query={query} onQueryChange={setQuery} />
           )}
         </div>
       )}
 
       {/* Execute Buttons */}
       {selectedTable && (
-        <div style={{ marginBottom: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+        <div className="mb-5 flex gap-2 flex-wrap">
           <button
             onClick={executeQuery}
             disabled={loading || connectionStatus !== 'connected' || !selectedTable}
-            style={{
-              padding: '12px 24px',
-              backgroundColor: connectionStatus === 'connected' && selectedTable ? '#007bff' : '#6c757d',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: connectionStatus === 'connected' && selectedTable ? 'pointer' : 'not-allowed',
-              fontSize: '16px',
-              fontWeight: 'bold'
-            }}
+            className="px-6 py-3 bg-blue-600 text-white border-none rounded-md cursor-pointer text-base font-bold hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
             {loading ? '⏳ Loading...' : '🔍 Execute Query (Local)'}
           </button>
@@ -577,16 +451,7 @@ export default function Home() {
           <button
             onClick={sendToBackend}
             disabled={sendingToBackend || !selectedTable}
-            style={{
-              padding: '12px 24px',
-              backgroundColor: selectedTable ? '#28a745' : '#6c757d',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: selectedTable ? 'pointer' : 'not-allowed',
-              fontSize: '16px',
-              fontWeight: 'bold'
-            }}
+            className="px-6 py-3 bg-green-600 text-white border-none rounded-md cursor-pointer text-base font-bold hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
             {sendingToBackend ? '⏳ Sending...' : '📤 Send to Backend'}
           </button>
@@ -595,63 +460,26 @@ export default function Home() {
 
       {/* Error Message */}
       {error && (
-        <div style={{
-          padding: '15px',
-          marginBottom: '20px',
-          backgroundColor: '#f8d7da',
-          border: '1px solid #f5c6cb',
-          borderRadius: '6px',
-          color: '#721c24'
-        }}>
+        <div className="p-4 mb-5 bg-red-50 border border-red-200 rounded-md text-red-800">
           <strong>Error:</strong> {error}
         </div>
       )}
 
       {/* Results Table */}
       {data.length > 0 && (
-        <div style={{
-          border: '1px solid #ddd',
-          borderRadius: '8px',
-          marginBottom: '20px',
-          backgroundColor: '#fff',
-          overflow: 'hidden'
-        }}>
-          <div style={{ 
-            padding: '20px', 
-            borderBottom: '1px solid #ddd',
-            backgroundColor: '#f8f9fa'
-          }}>
-            <h2 style={{ margin: 0, color: '#333' }}>
+        <div className="border border-gray-300 rounded-lg mb-5 bg-white overflow-hidden">
+          <div className="p-5 border-b border-gray-300 bg-gray-50">
+            <h2 className="m-0 text-xl font-semibold text-gray-800">
               Results ({data.length} total records)
             </h2>
           </div>
 
-          {/* Table with horizontal scroll */}
-          <div style={{
-            overflowX: 'auto',
-            maxWidth: '100%'
-          }}>
-            <table style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              minWidth: '600px'
-            }}>
+          <div className="overflow-x-auto max-w-full">
+            <table className="w-full border-collapse min-w-[600px]">
               <thead>
-                <tr style={{ backgroundColor: '#f8f9fa' }}>
+                <tr className="bg-gray-50">
                   {getTableColumns().map((column, index) => (
-                    <th key={index} style={{
-                      padding: '12px 15px',
-                      textAlign: 'left',
-                      borderBottom: '2px solid #dee2e6',
-                      color: '#495057',
-                      fontWeight: '600',
-                      fontSize: '14px',
-                      whiteSpace: 'nowrap',
-                      position: 'sticky',
-                      top: 0,
-                      backgroundColor: '#f8f9fa',
-                      zIndex: 10
-                    }}>
+                    <th key={index} className="px-4 py-3 text-left border-b-2 border-gray-300 text-gray-700 font-semibold text-sm whitespace-nowrap sticky top-0 bg-gray-50 z-10">
                       {column}
                     </th>
                   ))}
@@ -659,24 +487,12 @@ export default function Home() {
               </thead>
               <tbody>
                 {currentData.map((row, rowIndex) => (
-                  <tr key={rowIndex} style={{
-                    backgroundColor: rowIndex % 2 === 0 ? '#fff' : '#f8f9fa',
-                    transition: 'background-color 0.2s'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e9ecef'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = rowIndex % 2 === 0 ? '#fff' : '#f8f9fa'}
+                  <tr 
+                    key={rowIndex} 
+                    className={`transition-colors ${rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-gray-200`}
                   >
                     {getTableColumns().map((column, colIndex) => (
-                      <td key={colIndex} style={{
-                        padding: '12px 15px',
-                        borderBottom: '1px solid #dee2e6',
-                        color: '#212529',
-                        fontSize: '14px',
-                        maxWidth: '300px',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
-                      }}>
+                      <td key={colIndex} className="px-4 py-3 border-b border-gray-300 text-gray-800 text-sm max-w-[300px] overflow-hidden text-ellipsis whitespace-nowrap">
                         {typeof row[column] === 'object' 
                           ? JSON.stringify(row[column]) 
                           : String(row[column] ?? '')}
@@ -688,7 +504,6 @@ export default function Home() {
             </table>
           </div>
 
-          {/* Pagination */}
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}
@@ -702,47 +517,16 @@ export default function Home() {
 
       {/* JOIN Modal */}
       {showJoinModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000,
-          padding: '20px'
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            padding: '30px',
-            borderRadius: '8px',
-            width: '500px',
-            maxWidth: '100%',
-            maxHeight: '90vh',
-            overflowY: 'auto'
-          }}>
-            <h3 style={{ marginTop: 0, color: '#333' }}>Configure JOIN</h3>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-5">
+          <div className="bg-white p-8 rounded-lg w-[500px] max-w-full max-h-[90vh] overflow-y-auto">
+            <h3 className="mt-0 mb-4 text-xl font-semibold text-gray-800">Configure JOIN</h3>
             
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', color: '#666', fontSize: '14px', fontWeight: 'bold' }}>
-                Join Type:
-              </label>
+            <div className="mb-4">
+              <label className="block mb-1.5 text-gray-600 text-sm font-bold">Join Type:</label>
               <select
                 value={newJoin.type}
                 onChange={(e) => setNewJoin({...newJoin, type: e.target.value as any})}
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  fontSize: '16px',
-                  borderRadius: '6px',
-                  border: '1px solid #ccc',
-                  backgroundColor: '#fff',
-                  color: '#333',
-                  cursor: 'pointer'
-                }}
+                className="w-full p-2.5 text-base rounded-md border border-gray-300 bg-white text-gray-800 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="INNER">INNER JOIN (matching records only)</option>
                 <option value="LEFT">LEFT JOIN (all from left table)</option>
@@ -750,23 +534,12 @@ export default function Home() {
               </select>
             </div>
 
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', color: '#666', fontSize: '14px', fontWeight: 'bold' }}>
-                Target Table:
-              </label>
+            <div className="mb-4">
+              <label className="block mb-1.5 text-gray-600 text-sm font-bold">Target Table:</label>
               <select
                 value={newJoin.targetTable}
                 onChange={(e) => onTargetTableChange(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  fontSize: '16px',
-                  borderRadius: '6px',
-                  border: '1px solid #ccc',
-                  backgroundColor: '#fff',
-                  color: '#333',
-                  cursor: 'pointer'
-                }}
+                className="w-full p-2.5 text-base rounded-md border border-gray-300 bg-white text-gray-800 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">-- Select table to join --</option>
                 {tables.filter(t => t !== selectedTable).map(table => (
@@ -775,24 +548,15 @@ export default function Home() {
               </select>
             </div>
 
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', color: '#666', fontSize: '14px', fontWeight: 'bold' }}>
+            <div className="mb-4">
+              <label className="block mb-1.5 text-gray-600 text-sm font-bold">
                 Source Column ({selectedTable}):
               </label>
               <select
                 value={newJoin.sourceColumn}
                 onChange={(e) => setNewJoin({...newJoin, sourceColumn: e.target.value})}
                 disabled={!availableColumns[selectedTable]}
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  fontSize: '16px',
-                  borderRadius: '6px',
-                  border: '1px solid #ccc',
-                  backgroundColor: '#fff',
-                  color: '#333',
-                  cursor: 'pointer'
-                }}
+                className="w-full p-2.5 text-base rounded-md border border-gray-300 bg-white text-gray-800 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">-- Select column --</option>
                 {(availableColumns[selectedTable] || []).map(col => (
@@ -801,24 +565,15 @@ export default function Home() {
               </select>
             </div>
 
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', color: '#666', fontSize: '14px', fontWeight: 'bold' }}>
+            <div className="mb-5">
+              <label className="block mb-1.5 text-gray-600 text-sm font-bold">
                 Target Column ({newJoin.targetTable || 'select table first'}):
               </label>
               <select
                 value={newJoin.targetColumn}
                 onChange={(e) => setNewJoin({...newJoin, targetColumn: e.target.value})}
                 disabled={!newJoin.targetTable || !availableColumns[newJoin.targetTable]}
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  fontSize: '16px',
-                  borderRadius: '6px',
-                  border: '1px solid #ccc',
-                  backgroundColor: '#fff',
-                  color: '#333',
-                  cursor: 'pointer'
-                }}
+                className="w-full p-2.5 text-base rounded-md border border-gray-300 bg-white text-gray-800 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">-- Select column --</option>
                 {(availableColumns[newJoin.targetTable] || []).map(col => (
@@ -827,16 +582,7 @@ export default function Home() {
               </select>
             </div>
 
-            <div style={{ 
-              padding: '12px', 
-              backgroundColor: '#e7f3ff', 
-              borderRadius: '6px', 
-              marginBottom: '20px',
-              fontSize: '13px',
-              color: '#333',
-              fontFamily: 'monospace',
-              wordBreak: 'break-word'
-            }}>
+            <div className="p-3 bg-blue-50 rounded-md mb-5 text-sm text-gray-800 font-mono break-words">
               <strong>Preview:</strong><br/>
               {newJoin.targetTable && newJoin.sourceColumn && newJoin.targetColumn ? (
                 `${newJoin.type} JOIN ${newJoin.targetTable} ON ${selectedTable}.${newJoin.sourceColumn} = ${newJoin.targetTable}.${newJoin.targetColumn}`
@@ -845,36 +591,20 @@ export default function Home() {
               )}
             </div>
 
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+            <div className="flex gap-2 justify-end flex-wrap">
               <button
                 onClick={() => {
                   setShowJoinModal(false);
                   setNewJoin({ type: 'INNER', targetTable: '', sourceColumn: '', targetColumn: '' });
                 }}
-                style={{
-                  padding: '10px 20px',
-                  backgroundColor: '#6c757d',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '14px'
-                }}
+                className="px-5 py-2.5 bg-gray-600 text-white border-none rounded-md cursor-pointer text-sm hover:bg-gray-700"
               >
                 Cancel
               </button>
               <button
                 onClick={addJoin}
                 disabled={!newJoin.targetTable || !newJoin.sourceColumn || !newJoin.targetColumn}
-                style={{
-                  padding: '10px 20px',
-                  backgroundColor: (newJoin.targetTable && newJoin.sourceColumn && newJoin.targetColumn) ? '#007bff' : '#ccc',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: (newJoin.targetTable && newJoin.sourceColumn && newJoin.targetColumn) ? 'pointer' : 'not-allowed',
-                  fontSize: '14px'
-                }}
+                className="px-5 py-2.5 bg-blue-600 text-white border-none rounded-md cursor-pointer text-sm hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
                 Add JOIN
               </button>
