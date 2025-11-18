@@ -4,6 +4,8 @@ import { QueryBuilder, RuleGroupType, formatQuery, Field } from 'react-querybuil
 import 'react-querybuilder/dist/query-builder.css';
 import { supabase } from './lib/supabase';
 import Pagination from './components/Pagination';
+import { CheckCircle2, XCircle, RotateCw, Loader, BarChart3, Search, Send, AlertCircle, Plus, X } from 'lucide-react';
+
 
 const initialQuery: RuleGroupType = {
   combinator: 'and',
@@ -71,13 +73,13 @@ export default function Home() {
     try {
       if (supabase) {
         setConnectionStatus('connected');
-        console.log('✅ Supabase connection successful!');
+        console.log('Supabase connection successful!');
       } else {
         throw new Error('Supabase client not initialized');
       }
     } catch (err) {
       setConnectionStatus('error');
-      console.error('❌ Connection failed:', err);
+      console.error('Connection failed:', err);
     }
   }
 
@@ -90,7 +92,7 @@ export default function Home() {
       if (error) throw error;
       const tableNames = data?.map((t: any) => t.table_name || t) || [];
       setTables(tableNames);
-      console.log('✅ Tables loaded:', tableNames);
+      console.log('Tables loaded:', tableNames);
     } catch (err: any) {
       console.error('Error:', err);
       setError('Please create RPC function in Supabase SQL Editor first!');
@@ -117,7 +119,7 @@ export default function Home() {
       })) || [];
       
       setFields(newFields);
-      console.log('✅ Columns loaded:', newFields);
+      console.log('Columns loaded:', newFields);
     } catch (err: any) {
       console.error('Error:', err);
       setError('Could not load columns. Make sure RPC function exists.');
@@ -137,7 +139,7 @@ export default function Home() {
       
       const allFields = [...mainFields, ...joinedFields.flat()];
       setFields(allFields);
-      console.log('✅ All fields loaded with joins:', allFields);
+      console.log('All fields loaded with joins:', allFields);
     } catch (err: any) {
       console.error('Error loading joined fields:', err);
     } finally {
@@ -252,7 +254,7 @@ export default function Home() {
 
       setData(result || []);
       setCurrentPage(1);
-      console.log('✅ Query executed successfully. Results:', result?.length);
+      console.log('Query executed successfully. Results:', result?.length);
     } catch (err: any) {
       setError(err.message);
       console.error('Query error:', err);
@@ -287,7 +289,7 @@ export default function Home() {
         joins: joins,
       };
 
-      console.log('📤 Sending to backend:', payload);
+      console.log('Sending to backend:', payload);
 
       const response = await fetch('https://eumatrix.app.n8n.cloud/webhook/query', {
         method: 'POST',
@@ -300,7 +302,7 @@ export default function Home() {
       }
 
       const result = await response.json();
-      console.log('✅ Backend response:', result);
+      console.log('Backend response:', result);
       
       if (Array.isArray(result)) {
         setData(result);
@@ -313,11 +315,11 @@ export default function Home() {
       }
       
       setCurrentPage(1);
-      alert('✅ Data successfully received from backend!');
+      alert('Data successfully received from backend!');
     } catch (err: any) {
       setError(`Backend error: ${err.message}`);
-      console.error('❌ Backend error:', err);
-      alert('❌ Failed to get data from backend!');
+      console.error('Backend error:', err);
+      alert('Failed to get data from backend!');
     } finally {
       setSendingToBackend(false);
     }
@@ -344,17 +346,22 @@ export default function Home() {
       <h1 className="mb-5 text-2xl font-bold text-gray-800">EU Matrix Data Engine</h1>
       
       {/* Connection Status */}
-      <div className={`p-4 mb-5 rounded-lg border ${
+      <div className={`p-4 mb-5 rounded-lg border flex items-center gap-3 ${
         connectionStatus === 'connected' 
           ? 'bg-green-50 border-green-200 text-green-800' 
           : connectionStatus === 'error' 
           ? 'bg-red-50 border-red-200 text-red-800' 
           : 'bg-yellow-50 border-yellow-200 text-yellow-800'
       }`}>
-        <strong>Database Status: </strong>
-        {connectionStatus === 'checking' && '🔄 Checking connection...'}
-        {connectionStatus === 'connected' && '✅ Connected to Supabase'}
-        {connectionStatus === 'error' && '❌ Connection failed! Check your credentials.'}
+        {connectionStatus === 'checking' && <Loader className="w-5 h-5 animate-spin" />}
+        {connectionStatus === 'connected' && <CheckCircle2 className="w-5 h-5" />}
+        {connectionStatus === 'error' && <XCircle className="w-5 h-5" />}
+        <div>
+          <strong>Database Status: </strong>
+          {connectionStatus === 'checking' && 'Checking connection...'}
+          {connectionStatus === 'connected' && 'Connected to Supabase'}
+          {connectionStatus === 'error' && 'Connection failed! Check your credentials.'}
+        </div>
       </div>
 
       {/* Table Selector */}
@@ -376,14 +383,16 @@ export default function Home() {
             <button
               onClick={loadTables}
               disabled={loadingTables}
-              className="px-5 py-2.5 bg-gray-600 text-white border-none rounded-md cursor-pointer text-sm font-medium hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-5 py-2.5 bg-gray-600 text-white border-none rounded-md cursor-pointer text-sm font-medium hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
-              {loadingTables ? '⏳' : '🔄'} Refresh
+              <RotateCw className={`w-4 h-4 ${loadingTables ? 'animate-spin' : ''}`} />
+              Refresh
             </button>
           </div>
           {selectedTable && (
-            <p className="mt-2.5 text-gray-600 text-sm">
-              📊 Selected: <strong>{selectedTable}</strong> {fields.length > 0 && `(${fields.length} columns)`}
+            <p className="mt-2.5 text-gray-600 text-sm flex items-center gap-2">
+              <BarChart3 className="w-4 h-4" />
+              Selected: <strong>{selectedTable}</strong> {fields.length > 0 && `(${fields.length} columns)`}
             </p>
           )}
         </div>
@@ -402,9 +411,10 @@ export default function Home() {
               )}
               <button
                 onClick={openJoinModal}
-                className="px-4 py-2 bg-green-600 text-white border-none rounded-md cursor-pointer text-sm font-bold hover:bg-green-700"
+                className="px-4 py-2 bg-green-600 text-white border-none rounded-md cursor-pointer text-sm font-bold hover:bg-green-700 flex items-center gap-2"
               >
-                + JOIN
+                <Plus className="w-4 h-4" />
+                JOIN
               </button>
             </div>
           </div>
@@ -420,9 +430,9 @@ export default function Home() {
                   </span>
                   <button
                     onClick={() => removeJoin(index)}
-                    className="px-2.5 py-1 bg-red-600 text-white border-none rounded cursor-pointer text-xs hover:bg-red-700"
+                    className="px-2.5 py-1 bg-red-600 text-white border-none rounded cursor-pointer text-xs hover:bg-red-700 flex items-center gap-1"
                   >
-                    ✕
+                    <X className="w-3 h-3" />
                   </button>
                 </div>
               ))}
@@ -430,7 +440,10 @@ export default function Home() {
           )}
 
           {loadingColumns ? (
-            <p className="text-gray-600">⏳ Loading columns...</p>
+            <p className="text-gray-600 flex items-center gap-2">
+              <Loader className="w-4 h-4 animate-spin" />
+              Loading columns...
+            </p>
           ) : (
             <QueryBuilder fields={fields} query={query} onQueryChange={setQuery} />
           )}
@@ -443,25 +456,48 @@ export default function Home() {
           <button
             onClick={executeQuery}
             disabled={loading || connectionStatus !== 'connected' || !selectedTable}
-            className="px-6 py-3 bg-blue-600 text-white border-none rounded-md cursor-pointer text-base font-bold hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            className="px-6 py-3 bg-blue-600 text-white border-none rounded-md cursor-pointer text-base font-bold hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            {loading ? '⏳ Loading...' : '🔍 Execute Query (Local)'}
+            {loading ? (
+              <>
+                <Loader className="w-4 h-4 animate-spin" />
+                Loading...
+              </>
+            ) : (
+              <>
+                <Search className="w-4 h-4" />
+                Execute Query (Local)
+              </>
+            )}
           </button>
 
           <button
             onClick={sendToBackend}
             disabled={sendingToBackend || !selectedTable}
-            className="px-6 py-3 bg-green-600 text-white border-none rounded-md cursor-pointer text-base font-bold hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            className="px-6 py-3 bg-green-600 text-white border-none rounded-md cursor-pointer text-base font-bold hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            {sendingToBackend ? '⏳ Sending...' : '📤 Send to Backend'}
+            {sendingToBackend ? (
+              <>
+                <Loader className="w-4 h-4 animate-spin" />
+                Sending...
+              </>
+            ) : (
+              <>
+                <Send className="w-4 h-4" />
+                Send to Backend
+              </>
+            )}
           </button>
         </div>
       )}
 
       {/* Error Message */}
       {error && (
-        <div className="p-4 mb-5 bg-red-50 border border-red-200 rounded-md text-red-800">
-          <strong>Error:</strong> {error}
+        <div className="p-4 mb-5 bg-red-50 border border-red-200 rounded-md text-red-800 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+          <div>
+            <strong>Error:</strong> {error}
+          </div>
         </div>
       )}
 
