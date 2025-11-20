@@ -98,7 +98,6 @@ export default function Page() {
       }
       
       setTables(result.tables || []);
-      console.log('Tables loaded:', result.tables);
     } catch (err: any) {
       console.error('Error:', err);
       setError('Failed to load tables. Please check backend connection.');
@@ -135,7 +134,6 @@ export default function Page() {
       }));
       
       setFields(newFields);
-      console.log('Columns loaded:', newFields);
     } catch (err: any) {
       console.error('Error:', err);
       setError('Could not load columns. Make sure RPC function exists.');
@@ -260,9 +258,7 @@ export default function Page() {
     
     try {
       const processedQuery = processQueryRules(query);
-      console.log(JSON.stringify(processedQuery, null, 2));
-
-      
+     
       const response = await fetch('/api/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

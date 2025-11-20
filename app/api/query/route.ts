@@ -104,7 +104,6 @@ function buildSQL(table: string, query: RuleGroup, joins: JoinConfig[]): string 
     }
   }
 
-  console.log(sql, "sql");
   return sql;
 }
 
