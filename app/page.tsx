@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { QueryBuilder, RuleGroupType, formatQuery, Field } from 'react-querybuilder';
 import 'react-querybuilder/dist/query-builder.css';
-import { supabase } from './lib/supabase';
 import Pagination from './components/Pagination';
 import { CheckCircle2, XCircle, RotateCw, Loader, BarChart3, Search, Send, AlertCircle, Plus, X } from 'lucide-react';
 
@@ -19,7 +18,7 @@ interface JoinConfig {
   targetColumn: string;
 }
 
-export default function Home() {
+export default function Page() {
   const [query, setQuery] = useState<RuleGroupType>(initialQuery);
   const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'error'>('checking');
   const [data, setData] = useState<any[]>([]);
@@ -35,13 +34,12 @@ export default function Home() {
   const [joins, setJoins] = useState<JoinConfig[]>([]);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [newJoin, setNewJoin] = useState<JoinConfig>({
-    type: 'INNER',
+    type: 'RIGHT',
     targetTable: '',
     sourceColumn: '',
     targetColumn: ''
   });
   const [availableColumns, setAvailableColumns] = useState<{[key: string]: string[]}>({});
-  const [sendingToBackend, setSendingToBackend] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
@@ -69,13 +67,16 @@ export default function Home() {
     }
   }, [joins]);
 
+  // CONNECTION CHECK: Backend 
   async function checkConnection() {
     try {
-      if (supabase) {
+      const response = await fetch('/api/tables');
+      
+      if (response.ok) {
         setConnectionStatus('connected');
-        console.log('Supabase connection successful!');
+        console.log('Backend API connection successful!');
       } else {
-        throw new Error('Supabase client not initialized');
+        throw new Error('Backend not responding');
       }
     } catch (err) {
       setConnectionStatus('error');
@@ -83,40 +84,55 @@ export default function Home() {
     }
   }
 
+  // LOAD TABLES: Backend API tables fetch
   async function loadTables() {
     setLoadingTables(true);
     setError(null);
     
     try {
-      const { data, error } = await supabase.rpc('get_tables_list');
-      if (error) throw error;
-      const tableNames = data?.map((t: any) => t.table_name || t) || [];
-      setTables(tableNames);
-      console.log('Tables loaded:', tableNames);
+      const response = await fetch('/api/tables');
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to load tables');
+      }
+      
+      setTables(result.tables || []);
+      console.log('Tables loaded:', result.tables);
     } catch (err: any) {
       console.error('Error:', err);
-      setError('Please create RPC function in Supabase SQL Editor first!');
+      setError('Failed to load tables. Please check backend connection.');
     } finally {
       setLoadingTables(false);
     }
   }
 
+  // LOAD COLUMNS: Backend API columns fetch
   async function loadTableColumns(tableName: string) {
     setLoadingColumns(true);
     setError(null);
     
     try {
-      const { data, error } = await supabase.rpc('get_table_columns', { table_name: tableName });
-      if (error) throw error;
+      const response = await fetch('/api/columns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tableName })
+      });
       
-      const columnNames = data?.map((col: any) => col.column_name) || [];
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to load columns');
+      }
+      
+      const columnNames = result.columns.map((col: any) => col.name);
       setAvailableColumns(prev => ({ ...prev, [tableName]: columnNames }));
       
-      const newFields: Field[] = data?.map((col: any) => ({
-        name: `${tableName}.${col.column_name}`,
-        label: `${tableName}.${col.column_name}`,
-        inputType: mapPostgresType(col.data_type),
-      })) || [];
+      const newFields: Field[] = result.columns.map((col: any) => ({
+        name: `${tableName}.${col.name}`,
+        label: `${tableName}.${col.name}`,
+        inputType: mapPostgresType(col.type),
+      }));
       
       setFields(newFields);
       console.log('Columns loaded:', newFields);
@@ -139,7 +155,6 @@ export default function Home() {
       
       const allFields = [...mainFields, ...joinedFields.flat()];
       setFields(allFields);
-      console.log('All fields loaded with joins:', allFields);
     } catch (err: any) {
       console.error('Error loading joined fields:', err);
     } finally {
@@ -148,16 +163,22 @@ export default function Home() {
   }
 
   async function loadFieldsForTable(tableName: string): Promise<Field[]> {
-    const { data, error } = await supabase.rpc('get_table_columns', { table_name: tableName });
-    if (error || !data) return [];
+    const response = await fetch('/api/columns', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tableName })
+    });
     
-    const columnNames = data.map((col: any) => col.column_name);
+    const result = await response.json();
+    if (!response.ok || !result.columns) return [];
+    
+    const columnNames = result.columns.map((col: any) => col.name);
     setAvailableColumns(prev => ({ ...prev, [tableName]: columnNames }));
     
-    return data.map((col: any) => ({
-      name: `${tableName}.${col.column_name}`,
-      label: `${tableName}.${col.column_name}`,
-      inputType: mapPostgresType(col.data_type),
+    return result.columns.map((col: any) => ({
+      name: `${tableName}.${col.name}`,
+      label: `${tableName}.${col.name}`,
+      inputType: mapPostgresType(col.type),
     }));
   }
   
@@ -181,11 +202,7 @@ export default function Home() {
   async function onTargetTableChange(tableName: string) {
     setNewJoin({...newJoin, targetTable: tableName, sourceColumn: '', targetColumn: ''});
     if (tableName && !availableColumns[tableName]) {
-      const { data } = await supabase.rpc('get_table_columns', { table_name: tableName });
-      if (data) {
-        const columnNames = data.map((col: any) => col.column_name);
-        setAvailableColumns(prev => ({ ...prev, [tableName]: columnNames }));
-      }
+      await loadTableColumns(tableName);
     }
   }
 
@@ -207,19 +224,18 @@ export default function Home() {
     setJoins(updatedJoins);
   }
 
-   function processQueryRules(ruleGroup: RuleGroupType): any {
+  function processQueryRules(ruleGroup: RuleGroupType): any {
     const processedRules = ruleGroup.rules.map((rule: any) => {
       if ('rules' in rule && Array.isArray(rule.rules)) {
         return {
           combinator: rule.combinator || 'and',
           rules: processQueryRules(rule).rules,
-          isGroup: true // Mark as group for backend identification
+          isGroup: true
         };
       } else {
-        // This is a regular rule
         if (rule.field && rule.operator && rule.value !== undefined && rule.value !== '') {
           return {
-            field: rule.field.includes('.') ? rule.field.split('.')[1] : rule.field,
+            field: rule.field,
             operator: rule.operator,
             value: rule.value,
             isGroup: false
@@ -227,11 +243,12 @@ export default function Home() {
         }
       }
       return null;
-    }).filter(Boolean); // Remove null values
+    }).filter(Boolean);
 
     return { combinator: ruleGroup.combinator, rules: processedRules };
   }
 
+  // EXECUTE QUERY: Backend API query execute
   async function executeQuery() {
     if (!selectedTable) {
       setError('Please select a table first!');
@@ -242,110 +259,34 @@ export default function Home() {
     setError(null);
     
     try {
-      console.log('Generated Query:', formatQuery(query, 'sql'));
+      const processedQuery = processQueryRules(query);
+      console.log(JSON.stringify(processedQuery, null, 2));
 
-      let selectClause = `${selectedTable}.*`;
-      joins.forEach(join => {
-        selectClause += `, ${join.targetTable}!${join.sourceColumn}(*)`;
+      
+      const response = await fetch('/api/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          table: selectedTable,
+          query: processedQuery,
+          joins: joins
+        })
       });
 
-      let queryBuilder: any = supabase.from(selectedTable).select(selectClause);
-
-      if (query.rules && query.rules.length > 0) {
-        query.rules.forEach((rule: any) => {
-          if (rule.field && rule.operator && rule.value !== undefined && rule.value !== '') {
-            const field = rule.field.includes('.') ? rule.field.split('.')[1] : rule.field;
-            const value = rule.value;
-            
-            switch (rule.operator) {
-              case '=': queryBuilder = queryBuilder.eq(field, value); break;
-              case '!=': queryBuilder = queryBuilder.neq(field, value); break;
-              case '<': queryBuilder = queryBuilder.lt(field, value); break;
-              case '>': queryBuilder = queryBuilder.gt(field, value); break;
-              case '<=': queryBuilder = queryBuilder.lte(field, value); break;
-              case '>=': queryBuilder = queryBuilder.gte(field, value); break;
-              case 'contains': queryBuilder = queryBuilder.ilike(field, `%${value}%`); break;
-              case 'beginsWith': queryBuilder = queryBuilder.ilike(field, `${value}%`); break;
-              case 'endsWith': queryBuilder = queryBuilder.ilike(field, `%${value}`); break;
-              case 'null': queryBuilder = queryBuilder.is(field, null); break;
-              case 'notNull': queryBuilder = queryBuilder.not(field, 'is', null); break;
-            }
-          }
-        });
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Query failed');
       }
 
-      const { data: result, error: queryError } = await queryBuilder;
-      if (queryError) throw queryError;
-
-      setData(result || []);
+      setData(result.data || []);
       setCurrentPage(1);
-      console.log('Query executed successfully. Results:', result?.length);
+      console.log('Query executed successfully. Results:', result.count);
     } catch (err: any) {
       setError(err.message);
       console.error('Query error:', err);
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function sendToBackend() {
-    if (!selectedTable) {
-      setError('Please select a table first!');
-      return;
-    }
-
-    setSendingToBackend(true);
-    setError(null);
-
-    try {
-      const processedQuery = processQueryRules(query);
-
-      const payload = {
-        table: selectedTable,
-        query: processedQuery, // Complete query with groups and rules
-        conditions: processedQuery.rules,
-        joins: joins,
-        metadata: {
-          totalRules: query.rules.length,
-          hasNestedGroups: query.rules.some((rule: any) => 'rules' in rule),
-          rootCombinator: query.combinator
-        }
-      };
-
-      console.log('Sending to backend:', payload);
-      console.log('Full query structure:', JSON.stringify(payload.query, null, 2));
-
-      const response = await fetch('https://eumatrix.app.n8n.cloud/webhook/query', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Server error: ${response.status} ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      console.log('Backend response:', result);
-      
-      if (Array.isArray(result)) {
-        setData(result);
-      } else if (result.data && Array.isArray(result.data)) {
-        setData(result.data);
-      } else if (result.results && Array.isArray(result.results)) {
-        setData(result.results);
-      } else {
-        setData([result]);
-      }
-      
-      setCurrentPage(1);
-      alert('Data successfully received from backend!');
-    } catch (err: any) {
-      setError(`Backend error: ${err.message}`);
-      console.error('Backend error:', err);
-      alert('Failed to get data from backend!');
-    } finally {
-      setSendingToBackend(false);
     }
   }
 
@@ -369,8 +310,8 @@ export default function Home() {
     <div className="p-5 max-w-[1400px] mx-auto">
       <h1 className="mb-5 text-2xl font-bold text-white">
         {process.env.NEXT_PUBLIC_ORGANIZATION
-          ? `${process.env.NEXT_PUBLIC_ORGANIZATION} Query Craft Data Engine`
-          : "Query Craft Data Engine"}
+          ? `${process.env.NEXT_PUBLIC_ORGANIZATION} Explore EUmatrix political data`
+          : "Explore EUmatrix political data"}
       </h1>
       
       {/* Connection Status */}
@@ -385,17 +326,17 @@ export default function Home() {
         {connectionStatus === 'connected' && <CheckCircle2 className="w-5 h-5" />}
         {connectionStatus === 'error' && <XCircle className="w-5 h-5" />}
         <div>
-          <strong>Database Status: </strong>
+          <strong>Backend Status: </strong>
           {connectionStatus === 'checking' && 'Checking connection...'}
-          {connectionStatus === 'connected' && 'Connected to Supabase'}
-          {connectionStatus === 'error' && 'Connection failed! Check your credentials.'}
+          {connectionStatus === 'connected' && 'Connected via Next.js API'}
+          {connectionStatus === 'error' && 'Connection failed! Check backend.'}
         </div>
       </div>
 
       {/* Table Selector */}
       {connectionStatus === 'connected' && (
         <div className="border border-gray-300 rounded-lg p-5 mb-5 bg-white">
-          <h2 className="mb-4 text-xl font-semibold text-gray-800">Select Table</h2>
+          <h2 className="mb-4 text-md font-semibold text-gray-800">Select the database that you would like to access (e.g. MEPs, Commissioners, ministers, etc.)</h2>
           <div className="flex gap-2 flex-wrap">
             <select
               value={selectedTable}
@@ -430,7 +371,7 @@ export default function Home() {
       {selectedTable && fields.length > 0 && (
         <div className="border border-gray-300 rounded-lg p-5 mb-5 bg-white">
           <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
-            <h2 className="m-0 text-xl font-semibold text-gray-800">Query Builder</h2>
+            <h2 className="m-0 text-md font-semibold text-gray-800">Select the columns and filters you would like to visualise in the database</h2>
             <div className="flex gap-2 flex-wrap">
               {joins.length > 0 && (
                 <span className="px-3 py-2 bg-blue-50 text-blue-700 rounded-md text-sm font-bold">
@@ -478,9 +419,9 @@ export default function Home() {
         </div>
       )}
 
-      {/* Execute Buttons */}
+      {/* Execute Button */}
       {selectedTable && (
-        <div className="mb-5 flex gap-2 flex-wrap">
+        <div className="mb-5">
           <button
             onClick={executeQuery}
             disabled={loading || connectionStatus !== 'connected' || !selectedTable}
@@ -494,25 +435,7 @@ export default function Home() {
             ) : (
               <>
                 <Search className="w-4 h-4" />
-                Execute Query (Local)
-              </>
-            )}
-          </button>
-
-          <button
-            onClick={sendToBackend}
-            disabled={sendingToBackend || !selectedTable}
-            className="px-6 py-3 bg-green-600 text-white border-none rounded-md cursor-pointer text-base font-bold hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {sendingToBackend ? (
-              <>
-                <Loader className="w-4 h-4 animate-spin" />
-                Sending...
-              </>
-            ) : (
-              <>
-                <Send className="w-4 h-4" />
-                Send to Backend
+                Execute Query
               </>
             )}
           </button>
@@ -522,7 +445,7 @@ export default function Home() {
       {/* Error Message */}
       {error && (
         <div className="p-4 mb-5 bg-red-50 border border-red-200 rounded-md text-red-800 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+          <AlertCircle className="w-5 h-5  mt-0.5" />
           <div>
             <strong>Error:</strong> {error}
           </div>
@@ -592,9 +515,9 @@ export default function Home() {
                 onChange={(e) => setNewJoin({...newJoin, type: e.target.value as any})}
                 className="w-full p-2.5 text-base rounded-md border border-gray-300 bg-white text-gray-800 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="INNER">INNER JOIN (matching records only)</option>
-                <option value="LEFT">LEFT JOIN (all from left table)</option>
-                <option value="RIGHT">RIGHT JOIN (all from right table)</option>
+                <option value="INNER">INNER JOIN</option>
+                <option value="LEFT">LEFT JOIN</option>
+                <option value="RIGHT">RIGHT JOIN</option>
               </select>
             </div>
 
@@ -605,7 +528,7 @@ export default function Home() {
                 onChange={(e) => onTargetTableChange(e.target.value)}
                 className="w-full p-2.5 text-base rounded-md border border-gray-300 bg-white text-gray-800 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">-- Select table to join --</option>
+                <option value="">-- Select table --</option>
                 {tables.filter(t => t !== selectedTable).map(table => (
                   <option key={table} value={table}>{table}</option>
                 ))}
@@ -620,7 +543,7 @@ export default function Home() {
                 value={newJoin.sourceColumn}
                 onChange={(e) => setNewJoin({...newJoin, sourceColumn: e.target.value})}
                 disabled={!availableColumns[selectedTable]}
-                className="w-full p-2.5 text-base rounded-md border border-gray-300 bg-white text-gray-800 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full p-2.5 text-base rounded-md border border-gray-300 bg-white text-gray-800 cursor-pointer disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">-- Select column --</option>
                 {(availableColumns[selectedTable] || []).map(col => (
@@ -631,13 +554,13 @@ export default function Home() {
 
             <div className="mb-5">
               <label className="block mb-1.5 text-gray-600 text-sm font-bold">
-                Target Column ({newJoin.targetTable || 'select table first'}):
+                Target Column ({newJoin.targetTable || 'select table'}):
               </label>
               <select
                 value={newJoin.targetColumn}
                 onChange={(e) => setNewJoin({...newJoin, targetColumn: e.target.value})}
                 disabled={!newJoin.targetTable || !availableColumns[newJoin.targetTable]}
-                className="w-full p-2.5 text-base rounded-md border border-gray-300 bg-white text-gray-800 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full p-2.5 text-base rounded-md border border-gray-300 bg-white text-gray-800 cursor-pointer disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">-- Select column --</option>
                 {(availableColumns[newJoin.targetTable] || []).map(col => (
@@ -646,16 +569,7 @@ export default function Home() {
               </select>
             </div>
 
-            <div className="p-3 bg-blue-50 rounded-md mb-5 text-sm text-gray-800 font-mono break-words">
-              <strong>Preview:</strong><br/>
-              {newJoin.targetTable && newJoin.sourceColumn && newJoin.targetColumn ? (
-                `${newJoin.type} JOIN ${newJoin.targetTable} ON ${selectedTable}.${newJoin.sourceColumn} = ${newJoin.targetTable}.${newJoin.targetColumn}`
-              ) : (
-                'Select options above to see preview'
-              )}
-            </div>
-
-            <div className="flex gap-2 justify-end flex-wrap">
+            <div className="flex gap-2 justify-end">
               <button
                 onClick={() => {
                   setShowJoinModal(false);

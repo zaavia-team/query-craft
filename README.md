@@ -1,4 +1,4 @@
-# Query Craft Data Engine
+# Explore EUmatrix political data
 
 A powerful visual query builder application built with Next.js and React that enables users to construct complex database queries through an intuitive drag-and-drop interface. This project extends the [React Query Builder](https://react-querybuilder.js.org/) library with enterprise features including Supabase/PostgreSQL integration, multi-table joins, dynamic filtering, and real-time query execution with backend webhook integration.
 
@@ -29,7 +29,7 @@ Before you begin, ensure you have the following installed:
 1. **Clone the repository:**
 ```bash
 git clone https://github.com/zaavia-team/query-craft.git
-cd query-craft-data-engine
+cd explore-eumatrix-political-data
 ```
 
 2. **Install dependencies:**
@@ -274,7 +274,7 @@ This project is private and proprietary.
 
 ## 🙏 Credits
 
-This project is built upon the excellent [React Query Builder](https://react-querybuilder.js.org/) library. Query Craft Data Engine extends React Query Builder with enterprise features including database connectivity, automatic schema discovery, and advanced JOIN operations.
+This project is built upon the excellent [React Query Builder](https://react-querybuilder.js.org/) library. Explore EUmatrix political data extends React Query Builder with enterprise features including database connectivity, automatic schema discovery, and advanced JOIN operations.
 
 Special thanks to the React Query Builder community for creating such a flexible and powerful foundation.
 

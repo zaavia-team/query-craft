@@ -1,7 +1,7 @@
-# Query Craft Data Engine - Test Documentation
+# Explore EUmatrix political data - Test Documentation
 
 ## Overview
-This document provides comprehensive test coverage for the Query Craft Data Engine project, including unit tests, integration tests, and end-to-end test scenarios.
+This document provides comprehensive test coverage for the Explore EUmatrix political data project, including unit tests, integration tests, and end-to-end test scenarios.
 
 ## Test Setup
 
