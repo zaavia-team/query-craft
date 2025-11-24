@@ -40,11 +40,6 @@ export default function LoginPage() {
           if (result.credentials) {
             // New user was created - show in console
             setSeedCredentials(result.credentials);
-            console.log('--------------------------------');
-            console.log(' NEW USER CREATED!');
-            console.log('user_name:', result.credentials.user_name);
-            console.log('user_password:', result.credentials.user_password);
-            console.log('--------------------------------');
           }
         } else {
           setSeedError(result.message);

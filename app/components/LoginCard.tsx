@@ -1,7 +1,6 @@
 'use client';
 import { Database, AlertCircle } from 'lucide-react';
 import LoginForm from './LoginForm';
-import SeedInfoCard from './SeedInfoCard';
 
 interface Props {
   seedEnabled: boolean;
@@ -41,12 +40,6 @@ export default function LoginCard({
 
         <LoginForm onLoginSuccess={onLoginSuccess} />
 
-        {seedEnabled && seedCredentials && (
-          <SeedInfoCard 
-            user_name={seedCredentials.user_name} 
-            user_password={seedCredentials.user_password} 
-          />
-        )}
       </div>
     </div>
   );
