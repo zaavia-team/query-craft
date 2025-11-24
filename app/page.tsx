@@ -217,8 +217,8 @@ export default function Page() {
       <div className="flex justify-between items-center mb-5 flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-white">
           {process.env.NEXT_PUBLIC_ORGANIZATION
-            ? `${process.env.NEXT_PUBLIC_ORGANIZATION} Explore EUmatrix political data`
-            : "Explore EUmatrix political data"}
+            ? `${process.env.NEXT_PUBLIC_ORGANIZATION}`
+            : "Query Craft Engine"}
         </h1>
         
         <div className="flex items-center gap-3">

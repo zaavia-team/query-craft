@@ -19,7 +19,7 @@ export default function LoginCard({
         </div>
 
         <h1 className="text-2xl font-bold text-center text-gray-800 mb-2">
-          {process.env.NEXT_PUBLIC_ORGANIZATION || 'EUmatrix'} Login
+          {process.env.NEXT_PUBLIC_ORGANIZATION || 'Query Craft Engine'} Login
         </h1>
         <p className="text-center text-gray-600 mb-6">
           Sign in to access the database explorer
