@@ -35,7 +35,6 @@ export async function POST(request: Request) {
     const supabase = createServerClient();
     const sqlQuery = buildSQL(table, query, joins, selectedColumns);
 
-    // console.log("Generated SQL:", sqlQuery); 
 
     try {
       const { data, error } = await supabase.rpc("execute_dynamic_query", {
@@ -131,7 +130,6 @@ function buildSQL(
     if (where.trim()) sql += ` WHERE ${where}`;
   }
 
-  // console.log("Final SQL:", sql);
   return sql;
 }
 
