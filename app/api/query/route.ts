@@ -24,8 +24,6 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { table, query, joins = [], selectedColumns = [] } = body;
 
-    console.log("Received body:", body); //  Debug log
-
     if (!table) {
       console.error("Table is missing in request body:", body); //  Debug
       return NextResponse.json(
@@ -37,7 +35,7 @@ export async function POST(request: Request) {
     const supabase = createServerClient();
     const sqlQuery = buildSQL(table, query, joins, selectedColumns);
 
-    console.log("Generated SQL:", sqlQuery); //  For debugging
+    // console.log("Generated SQL:", sqlQuery); 
 
     try {
       const { data, error } = await supabase.rpc("execute_dynamic_query", {
@@ -133,7 +131,7 @@ function buildSQL(
     if (where.trim()) sql += ` WHERE ${where}`;
   }
 
-  console.log("Final SQL:", sql);
+  // console.log("Final SQL:", sql);
   return sql;
 }
 
@@ -191,26 +189,24 @@ function buildCondition(
   const isTextOperator = ['contains', 'beginsWith', 'endsWith'].includes(rule.operator);
   const valueIsNumeric = isNumeric(rule.value);
   
-  //  Only normalize text fields with text values
+
   const shouldNormalize = isTextOperator || (!valueIsNumeric && rule.operator !== 'null' && rule.operator !== 'notNull');
   const normField = shouldNormalize ? `unaccent(lower(CAST(${field} AS TEXT)))` : field;
 
-  //  Escape values based on type
+
   const escapeValue = (val: any): string => {
     if (val === null || val === undefined) return "NULL";
     
-    //  Handle numeric values (including string numbers like "66")
+
     if (isNumeric(val)) {
-      return String(Number(val)); // Convert to actual number
+      return String(Number(val)); 
     }
     
-    //  Handle text values
     if (typeof val === "string") {
       const clean = val.replace(/'/g, "''");
       return shouldNormalize ? `unaccent(lower('${clean}'))` : `'${clean}'`;
     }
     
-    //  Fallback
     return `'${String(val).replace(/'/g, "''")}'`;
   };
 
@@ -225,7 +221,7 @@ function buildCondition(
     case ">":
     case "<=":
     case ">=":
-      //  For comparison operators, never normalize
+
       const compValue = isNumeric(rule.value) 
         ? Number(rule.value) 
         : `'${String(rule.value).replace(/'/g, "''")}'`;
