@@ -15,37 +15,39 @@ interface Column {
 export default function ColumnSelector({ table, joins, onColumnsChange }: Props) {
     const [columns, setColumns] = useState<Column[]>([]);
     const [selected, setSelected] = useState<Record<string, { table: string; column: string; alias: string }>>({});
+                
+    
+        async function fetchCols(tbl: string) {
+            const res = await fetch(`/api/columns`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ tableName: tbl })
+            });
 
-    useEffect(() => {
-        async function loadColumns() {
-            const all: Column[] = [];
-
-            async function fetchCols(tbl: string) {
-                const res = await fetch(`/api/columns`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ tableName: tbl })
-                });
-
-                if (!res.ok) return [];
-                const data = await res.json();
-                return (data.columns || []).map((col: any) => ({
-                    table: tbl,
-                    column: col.name
-                }));
-            }
-
-            const mainCols = await fetchCols(table);
-            all.push(...mainCols);
-
-            for (const j of joins) {
-                const cols = await fetchCols(j.targetTable);
-                all.push(...cols);
-            }
-
-            setColumns(all);
+            if (!res.ok) return [];
+            const data = await res.json();
+            return (data.columns || []).map((col: any) => ({
+                table: tbl,
+                column: col.name
+            }));
         }
 
+        async function loadColumns() {
+        const all: Column[] = [];
+
+        const mainCols = await fetchCols(table);
+        all.push(...mainCols);
+
+        for (const j of joins) {
+            const cols = await fetchCols(j.targetTable);
+            all.push(...cols);
+        }
+
+        setColumns(all);
+        }
+
+
+    useEffect(() => {
         loadColumns();
     }, [table, joins]);
 
