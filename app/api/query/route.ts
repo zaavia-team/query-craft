@@ -24,10 +24,10 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { table, query, joins = [], selectedColumns = [] } = body;
 
-    console.log("Received body:", body); // ⭐ Debug log
+    console.log("Received body:", body); //  Debug log
 
     if (!table) {
-      console.error("Table is missing in request body:", body); // ⭐ Debug
+      console.error("Table is missing in request body:", body); //  Debug
       return NextResponse.json(
         { error: "Table name is required" },
         { status: 400 }
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     const supabase = createServerClient();
     const sqlQuery = buildSQL(table, query, joins, selectedColumns);
 
-    console.log("Generated SQL:", sqlQuery); // ⭐ For debugging
+    console.log("Generated SQL:", sqlQuery); //  For debugging
 
     try {
       const { data, error } = await supabase.rpc("execute_dynamic_query", {
@@ -86,7 +86,7 @@ function q(identifier: string): string {
   return `"${identifier.replace(/"/g, '""')}"`;
 }
 
-// ⭐ FIXED: Build SQL with selected columns and aliases
+//  FIXED: Build SQL with selected columns and aliases
 function buildSQL(
   table: string,
   query: RuleGroup,
@@ -98,7 +98,7 @@ function buildSQL(
 
   let sql = "SELECT ";
 
-  // ⭐ If no columns selected, return all columns
+  //  If no columns selected, return all columns
   if (selectedColumns.length === 0) {
     sql += `${mainAlias}.*`;
     joins.forEach((j, index) => {
@@ -106,7 +106,7 @@ function buildSQL(
       sql += `, ${alias}.*`;
     });
   } else {
-    // ⭐ Use selected columns with aliases
+    //  Use selected columns with aliases
     sql += selectedColumns
       .map((c) => {
         const tableAlias = c.table === table 
@@ -137,7 +137,7 @@ function buildSQL(
   return sql;
 }
 
-// ⭐ FIXED: Build WHERE with proper table alias resolution
+//  FIXED: Build WHERE with proper table alias resolution
 function buildWhere(
   group: RuleGroup, 
   mainAlias: string, 
@@ -158,7 +158,7 @@ function buildWhere(
   return parts.join(` ${group.combinator.toUpperCase()} `);
 }
 
-// ⭐ FIXED: Build condition with proper alias handling
+// condition with proper alias handling
 function buildCondition(
   rule: Rule,
   mainAlias: string,
@@ -181,47 +181,79 @@ function buildCondition(
     field = `${mainAlias}.${q(rule.field)}`;
   }
 
-  // Normalize field with unaccent+lower
-  const normField = `unaccent(lower(${field}))`;
+  //  Helper: Check if value is actually numeric
+  const isNumeric = (val: any): boolean => {
+    if (val === null || val === undefined || val === '') return false;
+    return !isNaN(Number(val)) && !isNaN(parseFloat(String(val)));
+  };
 
-  // Escape values
-  const escapeValue = (val: any) => {
+  //  Determine if we should use text operations
+  const isTextOperator = ['contains', 'beginsWith', 'endsWith'].includes(rule.operator);
+  const valueIsNumeric = isNumeric(rule.value);
+  
+  //  Only normalize text fields with text values
+  const shouldNormalize = isTextOperator || (!valueIsNumeric && rule.operator !== 'null' && rule.operator !== 'notNull');
+  const normField = shouldNormalize ? `unaccent(lower(CAST(${field} AS TEXT)))` : field;
+
+  //  Escape values based on type
+  const escapeValue = (val: any): string => {
     if (val === null || val === undefined) return "NULL";
+    
+    //  Handle numeric values (including string numbers like "66")
+    if (isNumeric(val)) {
+      return String(Number(val)); // Convert to actual number
+    }
+    
+    //  Handle text values
     if (typeof val === "string") {
       const clean = val.replace(/'/g, "''");
-      return `unaccent(lower('${clean}'))`;
+      return shouldNormalize ? `unaccent(lower('${clean}'))` : `'${clean}'`;
     }
-    return `unaccent(lower('${String(val)}'))`;
+    
+    //  Fallback
+    return `'${String(val).replace(/'/g, "''")}'`;
   };
 
   switch (rule.operator) {
     case "=":
       return `${normField} = ${escapeValue(rule.value)}`;
+      
     case "!=":
       return `${normField} != ${escapeValue(rule.value)}`;
+      
     case "<":
-      return `${normField} < ${escapeValue(rule.value)}`;
     case ">":
-      return `${normField} > ${escapeValue(rule.value)}`;
     case "<=":
-      return `${normField} <= ${escapeValue(rule.value)}`;
     case ">=":
-      return `${normField} >= ${escapeValue(rule.value)}`;
+      //  For comparison operators, never normalize
+      const compValue = isNumeric(rule.value) 
+        ? Number(rule.value) 
+        : `'${String(rule.value).replace(/'/g, "''")}'`;
+      return `${field} ${rule.operator} ${compValue}`;
+      
     case "contains":
-      return `${normField} LIKE unaccent(lower('%${String(rule.value).replace(/'/g, "''")}%'))`;
+      return `unaccent(lower(CAST(${field} AS TEXT))) LIKE unaccent(lower('%${String(rule.value).replace(/'/g, "''")}%'))`;
+      
     case "beginsWith":
-      return `${normField} LIKE unaccent(lower('${String(rule.value).replace(/'/g, "''")}%'))`;
+      return `unaccent(lower(CAST(${field} AS TEXT))) LIKE unaccent(lower('${String(rule.value).replace(/'/g, "''")}%'))`;
+      
     case "endsWith":
-      return `${normField} LIKE unaccent(lower('%${String(rule.value).replace(/'/g, "''")}'))`;
+      return `unaccent(lower(CAST(${field} AS TEXT))) LIKE unaccent(lower('%${String(rule.value).replace(/'/g, "''")}'))`;
+      
     case "null":
       return `${field} IS NULL`;
+      
     case "notNull":
       return `${field} IS NOT NULL`;
+      
     case "in":
       const list = Array.isArray(rule.value)
         ? rule.value.map((v) => escapeValue(v)).join(", ")
         : escapeValue(rule.value);
-      return `${normField} IN (${list})`;
+      return shouldNormalize 
+        ? `${normField} IN (${list})`
+        : `${field} IN (${list})`;
+      
     default:
       return `${normField} = ${escapeValue(rule.value)}`;
   }
