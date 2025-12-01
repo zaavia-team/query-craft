@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { FieldSelectorProps, Option } from 'react-querybuilder';
 
 export default function CustomFieldSelector({
@@ -8,14 +8,10 @@ export default function CustomFieldSelector({
 }: FieldSelectorProps) {
     const [searchTerm, setSearchTerm] = useState('');
     const [isOpen, setIsOpen] = useState(false);
-    const dropdownRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
 
-    const flattenedOptions: Option[] = options.flatMap((option) => {
-        if ('options' in option) {
-            return option.options as Option[];
-        }
-        return [option as Option];
-    });
+    const flattenedOptions: Option[] = options.flatMap((o) =>
+        'options' in o ? (o.options as Option[]) : [o as Option]);
 
     const filteredOptions = flattenedOptions.filter((option) =>
         option.label.toLowerCase().includes(searchTerm.toLowerCase())
@@ -23,36 +19,52 @@ export default function CustomFieldSelector({
 
     const selectedLabel = flattenedOptions.find((opt) => opt.name === value)?.label || 'Select field';
 
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+    const toggleDropdown = () => {
+        setIsOpen((prev) => !prev);
+    };
+
+    const handleBlur = (e: React.FocusEvent<HTMLDivElement>) => {
+        const nextFocus = e.relatedTarget as Node | null;
+        if (!containerRef.current?.contains(nextFocus)) {
                 setIsOpen(false);
                 setSearchTerm('');
             }
         };
 
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+    const handleSearchChange = (
+        e: React.ChangeEvent<HTMLInputElement>
+    ) => {
+        setSearchTerm(e.target.value);
+    };
 
-    const handleSelect = (optionValue: string) => {
-        handleOnChange(optionValue);
+    const handleOptionSelect = (val: string) => {
+        handleOnChange(val);
         setIsOpen(false);
         setSearchTerm('');
     };
+    const onOptionClick = (name: string) => {
+        return () => handleOptionSelect(name);
+        };
+
+    const stopPropagation = (e: React.MouseEvent) => {
+        e.stopPropagation();
+    };
 
     return (
-        <div ref={dropdownRef} className="relative w-60 bg-white border-1 border-gray-300 p-[3px] rounded ">
-
+        <div
+            ref={containerRef}
+            tabIndex={0}
+            onBlur={handleBlur}
+            className="relative w-60 bg-white border border-gray-300 p-[3px] rounded"
+        >
             <div
-                onClick={() => setIsOpen(!isOpen)}
-                className="w-full text-left flex items-center justify-between cursor-pointer 
-             bg-white hover:bg-white active:bg-white select-none"
+                onClick={toggleDropdown}
+                className="flex items-center justify-between cursor-pointer select-none"
             >
                 <span>{selectedLabel}</span>
 
                 <svg
-                    className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""} ml-2`}
+                    className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -70,26 +82,27 @@ export default function CustomFieldSelector({
 
             {/* Dropdown */}
             {isOpen && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-64 overflow-y-auto">
+                <div
+                    className="absolute w-full mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-64 overflow-y-auto"
+                    onMouseDown={stopPropagation} // prevents blur during click
+                >
                     {/* Search Input */}
                     <div className="p-2 border-b border-gray-200">
                         <input
-                            type="text"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            placeholder="Search columns..."
-                            className="w-full px-2 py-1 bg-white border border-gray-300 rounded text-sm focus:outline-none focus:border-gray-400"
                             autoFocus
+                            value={searchTerm}
+                            onChange={handleSearchChange}
+                            placeholder="Search columns..."
+                            className="w-full px-2 py-1 bg-white border border-gray-300 rounded text-sm focus:outline-none"
                         />
                     </div>
 
                     {/* Options List */}
-                    <div className="overflow-y-auto">
                         {filteredOptions.length > 0 ? (
-                            filteredOptions.map((option) => (
+                            filteredOptions?.map((option) => (
                                 <div
                                     key={option.name}
-                                    onClick={() => handleSelect(option.name)}
+                                    onClick={() => onOptionClick(option.name)}
                                     className={`px-2 py-1.5 cursor-pointer text-sm ${value === option.name ? 'bg-gray-100' : 'hover:bg-gray-50'
                                         }`}
                                 >
@@ -97,10 +110,7 @@ export default function CustomFieldSelector({
                                 </div>
                             ))
                         ) : (
-                            <div className="px-2 py-1.5 text-gray-500 text-sm">No columns found</div>
-                        )}
-                    </div>
-                </div>
+                            <div className="px-2 py-2 text-gray-500 text-sm">No columns found</div>)}</div>
             )}
         </div>
     );
