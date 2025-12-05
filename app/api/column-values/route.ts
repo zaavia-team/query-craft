@@ -14,35 +14,10 @@ export async function POST(request: Request) {
     }
 
     const supabase = createServerClient()
-    const { data: columnInfo, error: columnError } = await supabase.rpc(
-      'get_table_columns',
-      { table_name: tableName }
-    )
-
-    if (columnError) {
-      return NextResponse.json(
-        { error: columnError.message },
-        { status: 500 }
-      )
-    }
-
-    const exactColumn = columnInfo?.find((c: any) =>
-      c.column_name.toLowerCase().trim() === columnName.toLowerCase().trim())
-
-    if (!exactColumn) {
-      return NextResponse.json(
-        {
-          error: `Column "${columnName}" not found`,
-          availableColumns: columnInfo?.map((c: any) => c.column_name)
-        },
-        { status: 404 }
-      )
-    }
-    const actualColumnName = exactColumn.column_name
 
     const { data, error } = await supabase.rpc('get_distinct_values', {
       table_name: tableName,
-      column_name: actualColumnName,
+      column_name: columnName,
       search: searchTerm.trim()
     })
 
@@ -53,21 +28,24 @@ export async function POST(request: Request) {
         { status: 500 }
       )
     }
-    const values = data?.map((row: any) => row.val) || []
+    const values = data?.map((row: { val: string | number }) => row.val) || []
 
     return NextResponse.json({
       success: true,
       tableName,
-      columnName: actualColumnName,
+      columnName,
       searchTerm,
       values,
       count: values.length
     })
 
-  } catch (err: any) {
+  } catch (err) {
     console.error('Server Error:', err)
     return NextResponse.json(
-      { error: 'Internal server error', message: err.message },
+      { 
+        error: 'Internal server error', 
+        message: err instanceof Error ? err.message : 'Unknown error'
+      },
       { status: 500 }
     )
   }
