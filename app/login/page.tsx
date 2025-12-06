@@ -37,11 +37,13 @@ export default function LoginPage() {
     }
   }
 
-  function handleLoginSuccess(userId: string, userName: string) {
+  function handleLoginSuccess(userId: string, userName: string, userRole: string) {
     // Store session
     sessionStorage.setItem('userId', userId);
     sessionStorage.setItem('userName', userName);
-    
+    sessionStorage.setItem('userRole', userRole);
+
+    console.log('Login successful - Role stored:', userRole, );
     // Redirect to main page
     router.push('/');
   }

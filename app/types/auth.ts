@@ -16,6 +16,7 @@ export interface AuthResponse {
   user?: {
     id: string;
     user_name: string;
+    roles_and_rights?: string;
   };
   credentials?: {
     user_name: string;

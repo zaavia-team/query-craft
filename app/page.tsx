@@ -6,7 +6,7 @@ import Header from './components/Header';
 import TableSelector from './components/TableSelector';
 import QueryBuilderSection from './components/QueryBuilderSection';
 import JoinModal from './components/JoinModal';
-import ExecuteButton from './components/ExecuteButton';
+import CreateUserModal from './components/CreateUserModal';
 import ErrorAlert from './components/ErrorAlert';
 import ResultsTable from './components/ResultsTable';
 import { JoinConfig, ConnectionStatus as Status } from './types';
@@ -18,9 +18,12 @@ const initialQuery: RuleGroupType = {
   combinator: 'and',
   rules: [],
 };
+type UserRole = 'Admin' | 'User';
 
 export default function Page() {
   const router = useRouter();
+  const [userRole, setUserRole] = useState<UserRole>('User');
+  const [showCreateUserModal, setShowCreateUserModal] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userEmail, setUserEmail] = useState('');
   const [checkingAuth, setCheckingAuth] = useState(true);
@@ -62,14 +65,18 @@ export default function Page() {
   useEffect(() => {
     const userId = sessionStorage.getItem('userId');
     const userName = sessionStorage.getItem('userName');
+    const storedRole = sessionStorage.getItem('userRole');
     
     if (!userId || !userName) {
       router.push('/login');
-    } else {
+      return;
+    }
+    const role = (storedRole === 'Admin' || storedRole === 'User') ? storedRole as UserRole : 'User';
+    
       setIsAuthenticated(true);
       setUserEmail(userName);
+    setUserRole(role);
       setCheckingAuth(false);
-    }
   }, [router]);
 
   useEffect(() => {
@@ -198,6 +205,7 @@ export default function Page() {
   function handleLogout() {
     sessionStorage.removeItem('userId');
     sessionStorage.removeItem('userName');
+    sessionStorage.removeItem('userRole');
     router.push('/login');
   }
 
@@ -221,9 +229,18 @@ export default function Page() {
       
       <Header 
         userEmail={userEmail}
+        userRole={userRole}
         onLogout={handleLogout}
+        onCreateUser={() => setShowCreateUserModal(true)}
         organizationName={process.env.NEXT_PUBLIC_ORGANIZATION}
         organizationSubHeading={process.env.NEXT_PUBLIC_ORGANIZATION_SUB_HEADING}
+      />
+
+      <CreateUserModal
+          show={showCreateUserModal}
+          creatorRole={userRole}
+          creatorUserName={userEmail}
+          onClose={() => setShowCreateUserModal(false)}
       />
       
     <main className="flex-grow">

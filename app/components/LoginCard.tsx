@@ -3,7 +3,7 @@ import { Database, AlertCircle } from 'lucide-react';
 import LoginForm from './LoginForm';
 
 interface Props {
-  onLoginSuccess: (userId: string, userName: string) => void;
+  onLoginSuccess: (userId: string, userName: string, userRole: string) => void;
 }
 
 export default function LoginCard({ 
