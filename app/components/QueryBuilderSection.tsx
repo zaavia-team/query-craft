@@ -95,7 +95,7 @@ export default function QueryBuilderSection({
             </div>
 
             {/* RIGHT PANEL - Filters */}
-        <div className='w-full lg:w-[60%]'>
+        <div className='w-full lg:w-[60%] overflow-x-auto'>
           {/* MOBILE ONLY: Filter Heading */}
           <h2 className="lg:hidden m-0 mb-3 text-sm font-semibold text-gray-800">
             Select the filtering criteria
@@ -110,10 +110,12 @@ export default function QueryBuilderSection({
             fieldSelector: CustomFieldSelector,
               valueEditor: CustomValueEditor,}}
             controlClassnames={{
-            ruleGroup: "min-h-[300px] lg:min-h-[400px] max-h-[300px] lg:max-h-[400px] bg-slate-800/50 p-3 lg:p-4 rounded-lg border border-slate-700 overflow-y-auto text-sm",
-            removeRule: "ml-auto text-xs px-2 py-1 rounded bg-red-600 hover:bg-red-700 text-white",
-            operators: "min-w-[150px] bg-slate-900 text-slate-100 border border-slate-600 rounded px-2 py-1",
-            value: "bg-slate-900 text-slate-200 border border-slate-600 rounded px-2 py-1 min-w-[150px]",
+            ruleGroup: "min-h-[300px] lg:min-h-[400px] max-h-[300px] lg:max-h-[400px] bg-slate-800/50 p-3 lg:p-4 rounded-lg border border-slate-700 overflow-y-auto overflow-x-auto text-sm",
+            rule: "flex flex-nowrap gap-2 items-center min-w-fit",
+            removeRule: "ml-auto text-xs px-2 py-1 rounded bg-red-600 hover:bg-red-700 text-white shrink-0",
+            operators: "min-w-[150px] bg-slate-900 text-slate-100 border border-slate-600 rounded px-2 py-1 shrink-0 h-9",
+            value: "bg-slate-900 text-slate-200 border border-slate-600 rounded px-2 py-1 min-w-[150px] shrink-0",
+            fields: "min-w-[200px] bg-slate-900 text-slate-100 border border-slate-600 rounded px-2 py-1 shrink-0",
           }}
             translations={{
               addRule: { label: "Add Filter" },
