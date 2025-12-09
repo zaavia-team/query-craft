@@ -21,15 +21,15 @@ export default function LoginPage() {
 
   async function checkAndSeedUser() {
     try {
-      // Check if SEED is enabled
-      
-      const seedEnv = process.env.NEXT_PUBLIC_SEED === 'TRUE';
-      if (seedEnv) {
         const response = await fetch('/api/auth/seed', {
           method: 'POST'
         });
 
+      if (!response.ok) {
+        console.error('Seed check failed:', response.statusText);
       }
+
+      await response.json();
     } catch (error) {
       console.error('Seed check failed:', error);
     } finally {
@@ -37,11 +37,12 @@ export default function LoginPage() {
     }
   }
 
-  function handleLoginSuccess(userId: string, userName: string) {
+  function handleLoginSuccess(userId: string, userName: string, userRole: string) {
     // Store session
     sessionStorage.setItem('userId', userId);
     sessionStorage.setItem('userName', userName);
-    
+    sessionStorage.setItem('userRole', userRole);
+
     // Redirect to main page
     router.push('/');
   }

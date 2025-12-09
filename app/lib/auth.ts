@@ -7,35 +7,36 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+export type UserRole = 'Admin' | 'User';
+
 export async function seedUser(): Promise<AuthResponse> {
   try {
-    // Check if users table has any data
+    // Check if admin exists
     const { data: existingUsers, error: checkError } = await supabase
       .from('users')
-      .select('id, user_name')
+      .select('id, user_name, roles_and_rights')
+      .eq('roles_and_rights', 'Admin')
       .limit(1);
 
     if (checkError) {
-      console.error(' Database error:', checkError.message);
+      console.error('Database error:', checkError.message);
       throw new Error(`Database error: ${checkError.message}`);
     }
 
-    // If data exists in users table, skip creation
     if (existingUsers && existingUsers.length > 0) {
-      console.log('Users table already has data, skipping seed');
+      console.log('Admin user already exists');
       return {
         success: true,
-        message: 'Users table already has data',
+        message: 'Admin user already exists',
         user: {
           id: existingUsers[0].id,
-          user_name: existingUsers[0].user_name
+          user_name: existingUsers[0].user_name,
+          roles_and_rights: existingUsers[0].roles_and_rights
         }
       };
     }
 
-    // Users table is empty - CREATE NEW USER
-    console.log('Users table is empty! Creating seed user...');
-    
+    console.log('Creating admin user...');
     const defaultUserName = 'admin';
     const defaultPassword = generateSecurePassword();
     const hashedPassword = await bcrypt.hash(defaultPassword, 10);
@@ -46,7 +47,7 @@ export async function seedUser(): Promise<AuthResponse> {
         {
           user_name: defaultUserName,
           user_password: hashedPassword,
-          created_at: new Date().toISOString()
+          roles_and_rights: 'Admin',
         }
       ])
       .select()
@@ -58,14 +59,15 @@ export async function seedUser(): Promise<AuthResponse> {
     }
     return {
       success: true,
-      message: 'Seed user created successfully',
+      message: 'Admin user created successfully',
       user: {
         id: newUser.id,
-        user_name: newUser.user_name
+        user_name: newUser.user_name,
+        roles_and_rights: newUser.roles_and_rights
       },
       credentials: {
         user_name: newUser.user_name,
-        user_password: defaultPassword // Return plain password for display
+        user_password: defaultPassword
       }
     };
   } catch (error: any) {
@@ -78,8 +80,8 @@ export async function seedUser(): Promise<AuthResponse> {
 }
 
 function generateSecurePassword(): string {
-  const length = 10;
-  const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const length = 12;
+  const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%';
   let password = '';
   for (let i = 0; i < length; i++) {
     password += charset.charAt(Math.floor(Math.random() * charset.length));
@@ -91,7 +93,7 @@ export async function validateLogin(user_name: string, user_password: string): P
   try {
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, user_name, user_password')
+      .select('id, user_name, user_password, roles_and_rights')
       .eq('user_name', user_name)
       .single();
 
@@ -102,7 +104,6 @@ export async function validateLogin(user_name: string, user_password: string): P
       };
     }
 
-    // Use bcrypt to compare passwords
     const isPasswordValid = await bcrypt.compare(user_password, user.user_password);
 
     if (!isPasswordValid) {
@@ -117,13 +118,76 @@ export async function validateLogin(user_name: string, user_password: string): P
       message: 'Login successful',
       user: {
         id: user.id,
-        user_name: user.user_name
+        user_name: user.user_name,
+        roles_and_rights: user.roles_and_rights
       }
     };
   } catch (error: any) {
+    console.error('Login error:', error.message);
     return {
       success: false,
       message: 'Login failed. Please try again.'
     };
+  }
+}
+export async function createUser(
+  first_name: string,      
+  last_name: string,       
+  user_name: string,       
+  contact: string | null,  
+  user_password: string,   
+  roles_and_rights: UserRole, 
+  created_by: string       
+): Promise<AuthResponse> {
+  try {
+
+    // Check if username already exists
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('user_name', user_name)
+      .single();
+
+    if (existingUser) {
+      return { success: false, message: 'Username already exists' };
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(user_password, 10);
+
+    // Insert new user with all fields
+    const { data: newUser, error } = await supabase
+      .from('users')
+      .insert([
+        {
+          first_name,
+          last_name,
+          user_name,
+          contact,
+          user_password: hashedPassword,
+          roles_and_rights,
+          created_by,             
+        }
+      ])
+      .select()
+      .single();
+
+    if (error || !newUser) {
+      console.error('Failed to create user:', error?.message);
+      return { success: false, message: error?.message || 'Failed to create user' };
+    }
+
+    return {
+      success: true,
+      message: 'User created successfully',
+      user: {
+        id: newUser.id,
+        user_name: newUser.user_name,
+        roles_and_rights: newUser.roles_and_rights
+      }
+    };
+  } catch (error: any) {
+    console.error('Create user error:', error.message);
+    return { success: false, message: error.message || 'Failed to create user' };
   }
 }

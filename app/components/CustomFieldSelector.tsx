@@ -52,16 +52,16 @@ export default function CustomFieldSelector({
             ref={containerRef}
             tabIndex={0}
             onBlur={handleBlur}
-            className="relative w-60 bg-white border border-gray-300 p-[3px] rounded"
+            className="relative w-full bg-white border border-gray-300 p-2 rounded"
         >
             <div
                 onClick={toggleDropdown}
-                className="flex items-center justify-between cursor-pointer select-none"
+                className="flex items-center justify-between cursor-pointer select-none gap-2"
             >
-                <span>{selectedLabel}</span>
+                <span className="truncate flex-1 text-sm">{selectedLabel}</span>
 
                 <svg
-                    className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                    className={`w-4 h-4 flex-shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -75,22 +75,21 @@ export default function CustomFieldSelector({
                 </svg>
             </div>
 
-
-
             {/* Dropdown */}
             {isOpen && (
                 <div
-                    className="absolute w-full mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-64 overflow-y-auto"
-                    onMouseDown={stopPropagation} // prevents blur during click
+                    className="absolute left-0 right-0 mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-64 overflow-y-auto z-50"
+                    style={{ minWidth: '100%' }}
+                    onMouseDown={stopPropagation}
                 >
                     {/* Search Input */}
-                    <div className="p-2 border-b border-gray-200">
+                    <div className="p-2 border-b border-gray-200 sticky top-0 bg-white">
                         <input
                             autoFocus
                             value={searchTerm}
                             onChange={handleSearchChange}
                             placeholder="Search columns..."
-                            className="w-full px-2 py-1 bg-white border border-gray-300 rounded text-sm focus:outline-none"
+                            className="w-full px-2 py-1.5 bg-white border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
                         />
                     </div>
 
@@ -100,14 +99,17 @@ export default function CustomFieldSelector({
                                 <div
                                     key={option.name}
                                     onClick={() => handleOptionSelect(option.name)}
-                                    className={`px-2 py-1.5 cursor-pointer text-sm ${value === option.name ? 'bg-gray-100' : 'hover:bg-gray-50'
+                                    className={`px-3 py-2 cursor-pointer text-sm break-words ${
+                                    value === option.name 
+                                        ? 'bg-blue-50 text-blue-700' 
+                                        : 'hover:bg-gray-50'
                                         }`}
                                 >
                                     {option.label}
                                 </div>
                             ))
                         ) : (
-                            <div className="px-2 py-2 text-gray-500 text-sm">No columns found</div>)}</div>
+                            <div className="px-3 py-2 text-gray-500 text-sm">No columns found</div>)}</div>
             )}
         </div>
     );
